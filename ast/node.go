@@ -159,6 +159,148 @@ type ListData struct {
 // Testing 标识是否为测试环境。
 var Testing bool
 
+// CloneList 用于克隆从 FirstChild 到 LastChild 的节点。
+func (node *Node) CloneList() *Node {
+	if node == nil {
+		return nil
+	}
+
+	var newRoot *Node // 克隆的根节点
+
+	parentStack := []*Node{}
+
+	Walk(node, func(n *Node, entering bool) WalkStatus {
+		if !entering {
+			parentStack = parentStack[:len(parentStack)-1]
+			return WalkContinue
+		}
+
+		n_clone := n.Clone()
+
+		//第一个克隆节点为新的根节点
+		if newRoot == nil {
+			newRoot = n_clone
+		}
+
+		parentStack = append(parentStack, n_clone)
+		if len(parentStack) == 1 {
+			return WalkContinue
+		}
+		parent := parentStack[len(parentStack)-2]
+		parent.AppendChild(n_clone)
+		return WalkContinue
+	})
+
+	return newRoot // 返回克隆的节点链表的头部
+}
+
+func (n *Node) Clone() *Node {
+	if n == nil {
+		return nil
+	}
+
+	// 创建一个新的 Node
+	newNode := &Node{
+		ID:                          n.ID,
+		Box:                         n.Box,
+		Path:                        n.Path,
+		Spec:                        n.Spec,
+		Type:                        n.Type,
+		Tokens:                      append([]byte(nil), n.Tokens...), // 深拷贝 Tokens
+		TypeStr:                     n.TypeStr,
+		Data:                        n.Data,
+		Close:                       n.Close,
+		LastLineBlank:               n.LastLineBlank,
+		LastLineChecked:             n.LastLineChecked,
+		CodeMarkerLen:               n.CodeMarkerLen,
+		IsFencedCodeBlock:           n.IsFencedCodeBlock,
+		CodeBlockFenceChar:          n.CodeBlockFenceChar,
+		CodeBlockFenceLen:           n.CodeBlockFenceLen,
+		CodeBlockFenceOffset:        n.CodeBlockFenceOffset,
+		CodeBlockOpenFence:          append([]byte(nil), n.CodeBlockOpenFence...),  // 深拷贝 CodeBlockOpenFence
+		CodeBlockInfo:               append([]byte(nil), n.CodeBlockInfo...),       // 深拷贝 CodeBlockInfo
+		CodeBlockCloseFence:         append([]byte(nil), n.CodeBlockCloseFence...), // 深拷贝 CodeBlockCloseFence
+		HtmlBlockType:               n.HtmlBlockType,
+		ListData:                    n.ListData, // 直接引用，如果需要深拷贝，需复制 ListData 的字段
+		TaskListItemChecked:         n.TaskListItemChecked,
+		TableAligns:                 append([]int{}, n.TableAligns...), // 深拷贝 TableAligns
+		TableCellAlign:              n.TableCellAlign,
+		TableCellContentWidth:       n.TableCellContentWidth,
+		TableCellContentMaxWidth:    n.TableCellContentMaxWidth,
+		LinkType:                    n.LinkType,
+		LinkRefLabel:                append([]byte(nil), n.LinkRefLabel...), // 深拷贝 LinkRefLabel
+		HeadingLevel:                n.HeadingLevel,
+		HeadingSetext:               n.HeadingSetext,
+		HeadingNormalizedID:         n.HeadingNormalizedID,
+		MathBlockDollarOffset:       n.MathBlockDollarOffset,
+		FootnotesRefLabel:           append([]byte(nil), n.FootnotesRefLabel...), // 深拷贝 FootnotesRefLabel
+		FootnotesRefId:              n.FootnotesRefId,
+		FootnotesRefs:               cloneFootnotes(n.FootnotesRefs),            // 递归克隆脚注引用
+		HtmlEntityTokens:            append([]byte(nil), n.HtmlEntityTokens...), // 深拷贝 HtmlEntityTokens
+		KramdownIAL:                 copyKramdownIAL(n.KramdownIAL),             // 需要深拷贝
+		Properties:                  copyProperties(n.Properties),               // 需要深拷贝
+		TextMarkType:                n.TextMarkType,
+		TextMarkAHref:               n.TextMarkAHref,
+		TextMarkATitle:              n.TextMarkATitle,
+		TextMarkInlineMathContent:   n.TextMarkInlineMathContent,
+		TextMarkInlineMemoContent:   n.TextMarkInlineMemoContent,
+		TextMarkBlockRefID:          n.TextMarkBlockRefID,
+		TextMarkBlockRefSubtype:     n.TextMarkBlockRefSubtype,
+		TextMarkFileAnnotationRefID: n.TextMarkFileAnnotationRefID,
+		TextMarkTextContent:         n.TextMarkTextContent,
+		AttributeViewID:             n.AttributeViewID,
+		AttributeViewType:           n.AttributeViewType,
+		CustomBlockFenceOffset:      n.CustomBlockFenceOffset,
+		CustomBlockInfo:             n.CustomBlockInfo,
+	}
+
+	// 克隆子节点
+	if len(n.Children) > 0 {
+		newNode.Children = make([]*Node, len(n.Children))
+		for i := range n.Children {
+			newNode.Children[i] = n.Children[i].Clone() // 递归调用 Clone
+		}
+	}
+
+	return newNode
+}
+
+// cloneFootnotes 深拷贝脚注引用节点
+func cloneFootnotes(footnotesRefs []*Node) []*Node {
+	if footnotesRefs == nil {
+		return nil
+	}
+	newRefs := make([]*Node, len(footnotesRefs))
+	for i, ref := range footnotesRefs {
+		newRefs[i] = ref.Clone() // 递归调用 Clone
+	}
+	return newRefs
+}
+
+// copyKramdownIAL 深拷贝 Kramdown 内联属性列表
+func copyKramdownIAL(kramdownIAL [][]string) [][]string {
+	if kramdownIAL == nil {
+		return nil
+	}
+	newIAL := make([][]string, len(kramdownIAL))
+	for i, pair := range kramdownIAL {
+		newIAL[i] = append([]string(nil), pair...) // 深拷贝每一对字符串
+	}
+	return newIAL
+}
+
+// copyProperties 深拷贝属性映射
+func copyProperties(properties map[string]string) map[string]string {
+	if properties == nil {
+		return nil
+	}
+	newProperties := make(map[string]string, len(properties))
+	for key, value := range properties {
+		newProperties[key] = value // 克隆每一个键值对
+	}
+	return newProperties
+}
+
 func NewNodeID() string {
 	if Testing {
 		return "20060102150405-1a2b3c4" // 测试环境 ID
